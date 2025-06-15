@@ -7,12 +7,16 @@ void func(std::string s, std::vector<std::string>& v) {
     int state = 0;
     for (int i = 0; i < s.length(); i++) {
         char ch = s[i];
+        std::cout << "state = " << state << ", char = '" << ch << "'\n";
         if (state == 0) {
             if (isdigit(ch)) {
                 state = 1;
             }
             else if (ch == '.') {
                 state = 6;
+            }
+            else {
+                state = -1;
             }
         }
         else if (state == 1) {
@@ -21,6 +25,9 @@ void func(std::string s, std::vector<std::string>& v) {
             }
             else if (ch == '.') {
                 state = 2;
+            }
+            else {
+                state = -1;
             }
         }
         else if (state == 2) {
@@ -41,10 +48,16 @@ void func(std::string s, std::vector<std::string>& v) {
             else if (isdigit(ch)) {
                 state = 5;
             }
+            else {
+                state = -1;
+            }
         }
         else if (state == 4) {
             if (isdigit(ch)) {
                 state = 5;
+            }
+            else {
+                state = -1;
             }
         }
         else if (state == 5) {
@@ -59,19 +72,29 @@ void func(std::string s, std::vector<std::string>& v) {
             if (isdigit(ch)) {
 				state = 2;
             }
+            else {
+                state = -1;
+            }
         }
-        else if (state == 7) {
-			v.push_back(s.substr(0, i));
-			s.erase(0, i);
-			i = -1; // Reset index to start over with the new string
-			state = 0; // Reset state
+        if (state == 7) {
+			v.push_back(s.substr(0, i + 1)); 
+			s = s.substr(i + 1);
+			i = -1; 
+			state = 0; 
         }
+		if (state == -1) {
+			s = s.substr(i + 1); 
+			state = 0;
+		}
     }
 }
 
 
 int main() {
-	std::string input = "1.23E+4 5.67D-8 9.0 3.14E2 42.0E-1";
+    
+	std::string input = "3.14 0.001 2.718 .5 123. 1.23E+10 4.56D-5 123 1.2.3 E10 1.23E 1.23E+ . 1.23e4f fuck y2ou";
+
+
 	std::vector<std::string> results;
 	func(input, results);
     for (const auto& res : results) {
