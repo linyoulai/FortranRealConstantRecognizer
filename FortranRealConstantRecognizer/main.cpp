@@ -14,9 +14,6 @@ void func(std::string s, std::vector<std::string>& v) {
             else if (ch == '.') {
                 state = 6;
             }
-            else {
-                state = -1;
-            }
         }
         else if (state == 1) {
             if (isdigit(ch)) {
@@ -69,12 +66,6 @@ void func(std::string s, std::vector<std::string>& v) {
 			i = -1; // Reset index to start over with the new string
 			state = 0; // Reset state
         }
-		else if (state == -1) {
-			// Invalid character, reset state and continue
-			s.erase(0, i); // Remove invalid part
-			i = -1; // Reset index to start over with the new string
-			state = 0; // Reset state
-		}
     }
 }
 
