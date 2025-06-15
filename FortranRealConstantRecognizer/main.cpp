@@ -92,7 +92,7 @@ void func(std::string s, std::vector<std::string>& v) {
 
 int main() {
     
-	std::string input = "3.14 0.001 2.718 .5 123. 1.23E+10 4.56D-5 123 1.2.3 E10 1.23E 1.23E+ . 1.23e4f fuck y2ou";
+	std::string input = "3.14 0.001 2.718 .5 123. 1.23E+10 4.56D-5 123 1.2.3 E10 1.23E 1.23E+ . 1.23e4f yo2u ";
 
 
 	std::vector<std::string> results;
