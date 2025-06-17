@@ -1,0 +1,52 @@
+C =========================================================
+C Part 1: Valid FORTRAN Real Constants
+C =========================================================
+
+C --- Standard decimal notation ---
+VAR_A = 3.14159
+VAR_B = 0.5
+VAR_C = .12345
+VAR_D = 123.
+VAR_E = 1.0
+
+C --- Scientific notation (E for single precision) ---
+CHARGE = 1.602E-19
+SPEED_LIGHT = 3.0E8
+BIG_NUM = 1E10
+SMALL_NUM = 5.E-5
+POSITIVE_EXP = 123.45E+3
+
+C --- Scientific notation (D for double precision) ---
+PI_DOUBLE = 3.141592653589793D0
+AVOGADRO = 6.02214076D23
+SMALL_D = .1D-9
+LARGE_D = 12345.D+10
+
+C --- Mixed valid cases on one line ---
+CALL SUBROUTINE(1.23, 4.56E-7, .789D+10, 99.)
+
+C =========================================================
+C Part 2: Invalid or "Other" Type Tokens
+C =========================================================
+
+C --- Not real constants (integers, identifiers) ---
+INTEGER_VAR = 12345
+AN_IDENTIFIER = XYZ123
+
+C --- Malformed numbers ---
+ERR_DOUBLE_DOT = 1.2.3
+ERR_TRAILING_DOT = 1..
+ERR_MULTIPLE_E = 1.0E5E6
+ERR_E_AT_START = E10
+ERR_DANGLING_E = 123E
+ERR_DANGLING_SIGN = 4.5D+
+ERR_DANGLING_DOT = .
+ERR_SIGN_ALONE = +
+ERR_E_NO_DIGITS = 3.D
+      
+C --- Other invalid constructs ---
+X = 1.E + 5   C Space breaks the number token
+Y = .E5       C Dot followed by E is invalid
+
+STOP
+END

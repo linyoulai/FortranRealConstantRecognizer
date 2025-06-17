@@ -1,164 +1,185 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <fstream>
 #include <cctype>
 
-void func(std::string s, std::vector<std::string>& v) {
-    int state = 0;
-    for (int i = 0; i < s.length(); i++) {
-        char ch = s[i];
-        //std::cout << "state = " << state << ", char = '" << ch << "'\n";
-        if (state == 0) {
-            if (isdigit(ch)) {
-                state = 1;
-            }
-            else if (ch == '.') {
-                state = 6;
-            }
-            else {
-                state = -1;
-            }
-        }
-        else if (state == 1) {
-            if (isdigit(ch)) {
-                state = 1;
-            }
-            else if (ch == '.') {
-                state = 2;
-            }
-            else {
-                state = -1;
-            }
-        }
-        else if (state == 2) {
-            if (isdigit(ch)) {
-                state = 2;
-            }
-            else if (ch == 'd' || ch == 'D' || ch == 'e' || ch == 'E') {
-                state = 3;
-            }
-            else if (ch == ' ' || ch == '\n') {
-                state = 7;
-            }
-            else {
-				state = -1;
-            }
-        }
-        else if (state == 3) {
-            if (ch == '+' || ch == '-') {
-                state = 4;
-            }
-            else if (isdigit(ch)) {
-                state = 5;
-            }
-            else {
-                state = -1;
-            }
-        }
-        else if (state == 4) {
-            if (isdigit(ch)) {
-                state = 5;
-            }
-            else {
-                state = -1;
-            }
-        }
-        else if (state == 5) {
-			if (isdigit(ch)) {
-				state = 5;
-			}
-			else if (ch == ' ' || ch == '\n') {
-				state = 7;
-			}
-            else {
-                state = -1;
-            }
-		}
-        else if (state == 6) {
-            if (isdigit(ch)) {
-				state = 2;
-            }
-			else if (ch == ' ' || ch == '\n') {
-				state = 7;
-			}
-            else {
-                state = -1;
-            }
-        }
-        if (state == 7) {
-			v.push_back(s.substr(0, i)); 
-			std::cout << s.substr(0, i) << ":合法" << std::endl;
-			s = s.substr(i);
-			i = -1; 
-			state = 0; 
-        }
-		if (state == -1) {
-			// 将i移动到格或换行符之后
-			while (i < s.length() && s[i] != ' ' && s[i] != '\n') {
-				i++;
-			}
+enum State {
+    S0_START,      // 初始状态
+    S1_INTEGER,    // 整数部分
+    S2_DOT,        // 遇到小数点
+    S3_EXP_SYMBOL, // 遇到E或D
+    S4_FRACTION,   // 小数点后的数字
+    S5_EXP_DIGIT,  // E/D后的数字
+    S6_EXP_SIGN,   // E/D后的符号
+    S_ERROR        // 错误/拒绝状态
+};
 
-			s = s.substr(i + 1); 
-			i = -1;
-
-			state = 0;
-		}
-
+/**
+ * @brief 判断一个字符串是否为FORTRAN实型常数
+ * @param token 要检查的词元
+ * @return 如果是实型常数则返回 true, 否则返回 false
+ */
+bool isFortranReal(const std::string& token) {
+    if (token.empty()) {
+        return false;
     }
+
+    State currentState = S0_START;
+
+    for (int i = 0; i < token.length(); ++i) {
+        char ch = token[i];
+
+        switch (currentState) {
+        case S0_START:
+            if (isdigit(ch)) currentState = S1_INTEGER;
+            else if (ch == '.') currentState = S2_DOT;
+            else { currentState = S_ERROR; }
+            break;
+
+        case S1_INTEGER:
+            if (isdigit(ch)) { /* 留在 S1 */ }
+            else if (ch == '.') currentState = S4_FRACTION;
+            else if (toupper(ch) == 'E' || toupper(ch) == 'D') currentState = S3_EXP_SYMBOL;
+            else { currentState = S_ERROR; }
+            break;
+
+        case S2_DOT:
+            if (isdigit(ch)) currentState = S4_FRACTION;
+            else { currentState = S_ERROR; }
+            break;
+
+        case S4_FRACTION:
+            if (isdigit(ch)) { /* 留在 S4 */ }
+            else if (toupper(ch) == 'E' || toupper(ch) == 'D') currentState = S3_EXP_SYMBOL;
+            else { currentState = S_ERROR; }
+            break;
+
+        case S3_EXP_SYMBOL:
+            if (ch == '+' || ch == '-') currentState = S6_EXP_SIGN;
+            else if (isdigit(ch)) currentState = S5_EXP_DIGIT;
+            else { currentState = S_ERROR; }
+            break;
+
+        case S6_EXP_SIGN:
+            if (isdigit(ch)) currentState = S5_EXP_DIGIT;
+            else { currentState = S_ERROR; }
+            break;
+
+        case S5_EXP_DIGIT:
+            if (isdigit(ch)) { /* 留在 S5 */ }
+            else { currentState = S_ERROR; }
+            break;
+
+        case S_ERROR:
+            return false;
+        }
+
+        if (currentState == S_ERROR) {
+            return false;
+        }
+    }
+
+    return currentState == S2_DOT || currentState == S4_FRACTION || currentState == S5_EXP_DIGIT;
 }
 
+/**
+ * @brief 将一行代码分解为词元(token)列表
+ * @param line 输入的字符串行
+ * @return 包含所有词元的 vector
+ */
+std::vector<std::string> tokenizeLine(const std::string& line) {
+    std::vector<std::string> tokens;
+    std::string currentToken;
+
+    for (int i = 0; i < line.length(); ) {
+        // 跳过所有空白字符
+        if (isspace(line[i])) {
+            i++;
+            continue;
+        }
+
+        // FORTRAN注释行 (以C, c, * 开头)
+        if (i == 0 && (toupper(line[i]) == 'C' || line[i] == '*')) {
+            // 将整行视为一个注释词元
+            tokens.push_back(line);
+            return tokens; // 直接返回，不再分析该行
+        }
+
+        // 操作符和括号, 每个作为独立的词元
+        if (std::string("=*/()+-,").find(line[i]) != std::string::npos) {
+            tokens.push_back(std::string(1, line[i]));
+            i++;
+            continue;
+        }
+
+        // 识别标识符或数字
+        int start = i;
+        // 如果以字母开头，则为标识符
+        if (isalpha(line[i])) {
+            while (i < line.length() && isalnum(line[i])) {
+                i++;
+            }
+        }
+        // 如果以数字或小数点开头，则为数字
+        else if (isdigit(line[i]) || line[i] == '.') {
+            while (i < line.length() && (isalnum(line[i]) || line[i] == '.' ||
+                ((line[i] == '+' || line[i] == '-') && i > start && (toupper(line[i - 1]) == 'E' || toupper(line[i - 1]) == 'D')))) {
+                i++;
+            }
+        }
+        // 其他字符
+        else {
+            i++;
+        }
+
+        tokens.push_back(line.substr(start, i - start));
+    }
+
+    return tokens;
+}
 
 int main() {
-	std::string input = "3.14 0.001 2.718 .5 123. 1.23E+10 4.56D-5 123 1.2.3 E10 1.23E 1.23E+ . 1.23e4f yo2u ";
-    std::string input2 = R"(program test_real_constants
-                                implicit none
-    
-                                real :: r1, r2, r3, r4, r5, r6, r7, r8, r9, r10
-                                real(8) :: dr1, dr2, dr3, dr4, dr5
-    
-                                r1 = 3.14
-                                dr1 = 3.14d0
-                                r2 = 1.23e4
-                                r3 = 5.67E-2
-                                dr2 = 9.87d6
-                                r6 = 0.001
-                                dr4 = 0.0001d0
-                                r7 = 0.0005
-                                dr5 = 0.00001d0
-                                r8 = 1.23e+4
-                                r9 = 4.56e-3
-                                dr3 = 7.89d+2
-                                r10 = 1.0e30
-                                dr4 = 1.0d308
 
-                                r4 = +2.718
-                                r5 = -0.577
-                                dr3 = +1.618d3
-                                a = 1.2.3         
-                                b = 1e2e3          
-                                c = 1.2e           
-                                d = e10            
-                                e = 1.2e+          
-                                f = 1.2e-          
-                                g = 1.2f0          
-                                h = 1.2d          
-                                i = 1.2d+10.5      
-                                j = 1,234.56       
-                                k = 0x1.2p3        
-                                l = 1.23_456       
 
-    
-                            end program test_real_constants
-                            )";
-    std::cout << "输入: " << input2 << std::endl;
-    std::vector<std::string> results;
-	func(input2, results);
-  //  for (const auto& res : results) {
+    std::string filename = "fortran_program.txt";
+    std::ifstream inputFile(filename);
 
-		//if (!res.empty()) {
-		//	std::cout << res << std::endl;
-		//}
-  //  }
+    if (!inputFile.is_open()) {
+        std::cerr << "错误: 无法打开文件 '" << filename << "'" << std::endl;
+        return 1;
+    }
 
+    std::string line;
+    int lineNumber = 0;
+    while (std::getline(inputFile, line)) {
+        lineNumber++;
+        std::cout << "--- 分析第 " << lineNumber << " 行: " << line << " ---" << std::endl;
+
+        std::vector<std::string> tokens = tokenizeLine(line);
+
+        if (tokens.empty()) {
+            std::cout << "(空行或只包含空格)" << std::endl << std::endl;
+            continue;
+        }
+
+        // 如果是注释行
+        if (!tokens.empty() && (toupper(tokens[0][0]) == 'C' || tokens[0][0] == '*')) {
+            std::cout << "  词元: \"" << tokens[0] << "\" -> 注释行" << std::endl;
+        }
+        else {
+            for (const auto& token : tokens) {
+                if (isFortranReal(token)) {
+                    std::cout << "  词元: \"" << token << "\" -> FORTRAN 实型常数" << std::endl;
+                }
+                else {
+                    std::cout << "  词元: \"" << token << "\" -> 其他类型" << std::endl;
+                }
+            }
+        }
+        std::cout << std::endl;
+    }
+
+    inputFile.close();
     return 0;
 }
